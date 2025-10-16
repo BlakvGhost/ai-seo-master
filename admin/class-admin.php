@@ -57,6 +57,49 @@ class AI_SEO_Master_Admin
                 </div>
             </div>
         </div>
+
+        <script>
+            jQuery(document).ready(function($) {
+                // Navigation par onglets
+                $('.ai-seo-tabs .nav-tab').on('click', function(e) {
+                    e.preventDefault();
+
+                    var target = $(this).attr('href');
+
+                    // Activer l'onglet
+                    $('.nav-tab').removeClass('nav-tab-active');
+                    $(this).addClass('nav-tab-active');
+
+                    // Afficher le contenu
+                    $('.tab-pane').removeClass('active');
+                    $(target).addClass('active');
+                });
+
+                // Diagnostic SEO
+                $('#run-seo-diagnostic').on('click', function() {
+                    var $button = $(this);
+                    var $results = $('#diagnostic-results');
+
+                    $button.prop('disabled', true).text('Analyse en cours...');
+                    $results.html('<div class="notice notice-info"><p>Diagnostic en cours...</p></div>');
+
+                    $.post(ajaxurl, {
+                        action: 'ai_seo_run_diagnostic',
+                        _ajax_nonce: '<?php echo wp_create_nonce("ai_seo_diagnostic"); ?>'
+                    }, function(response) {
+                        if (response.success) {
+                            $results.html(response.data.html);
+                        } else {
+                            $results.html('<div class="notice notice-error"><p>Erreur: ' + response.data + '</p></div>');
+                        }
+                        $button.prop('disabled', false).text('Lancer le diagnostic SEO');
+                    }).fail(function() {
+                        $results.html('<div class="notice notice-error"><p>Erreur de connexion</p></div>');
+                        $button.prop('disabled', false).text('Lancer le diagnostic SEO');
+                    });
+                });
+            });
+        </script>
     <?php
     }
 
@@ -64,8 +107,10 @@ class AI_SEO_Master_Admin
     {
     ?>
         <form method="post" action="options.php">
-            <?php settings_fields('ai_seo_master_general'); ?>
-            <?php do_settings_sections('ai_seo_master_general'); ?>
+            <?php
+            settings_fields('ai_seo_master_general');
+            do_settings_sections('ai_seo_master_general');
+            ?>
 
             <table class="form-table">
                 <tr>
@@ -99,17 +144,21 @@ class AI_SEO_Master_Admin
                 </tr>
             </table>
 
-            <?php submit_button(); ?>
+            <?php submit_button('Enregistrer les paramètres généraux'); ?>
         </form>
     <?php
     }
 
     private function render_ai_seo_tab()
     {
+        $api_provider = get_option('ai_seo_master_api_provider', '');
+        $api_key_exists = !empty(get_option('ai_seo_master_api_key_encrypted'));
     ?>
         <form method="post" action="options.php">
-            <?php settings_fields('ai_seo_master_ai'); ?>
-            <?php do_settings_sections('ai_seo_master_ai'); ?>
+            <?php
+            settings_fields('ai_seo_master_ai');
+            do_settings_sections('ai_seo_master_ai');
+            ?>
 
             <table class="form-table">
                 <tr>
@@ -117,9 +166,9 @@ class AI_SEO_Master_Admin
                     <td>
                         <select name="ai_seo_master_api_provider">
                             <option value="">-- Sélectionner --</option>
-                            <option value="openai" <?php selected(get_option('ai_seo_master_api_provider'), 'openai'); ?>>OpenAI</option>
-                            <option value="gemini" <?php selected(get_option('ai_seo_master_api_provider'), 'gemini'); ?>>Google Gemini</option>
-                            <option value="mistral" <?php selected(get_option('ai_seo_master_api_provider'), 'mistral'); ?>>Mistral AI</option>
+                            <option value="openai" <?php selected($api_provider, 'openai'); ?>>OpenAI</option>
+                            <option value="gemini" <?php selected($api_provider, 'gemini'); ?>>Google Gemini</option>
+                            <option value="mistral" <?php selected($api_provider, 'mistral'); ?>>Mistral AI</option>
                         </select>
                     </td>
                 </tr>
@@ -128,8 +177,14 @@ class AI_SEO_Master_Admin
                     <th scope="row">Clé API</th>
                     <td>
                         <input type="password" name="ai_seo_master_api_key"
-                            value="" class="regular-text">
-                        <p class="description">Laisser vide pour ne pas modifier la clé actuelle</p>
+                            value="" class="regular-text" placeholder="<?php echo $api_key_exists ? '●●●●●●●●●●●●●●' : ''; ?>">
+                        <p class="description">
+                            <?php if ($api_key_exists): ?>
+                                ✅ Une clé API est déjà configurée. Laissez vide pour la conserver, ou saisissez une nouvelle clé pour la modifier.
+                            <?php else: ?>
+                                ❌ Aucune clé API configurée. Saisissez votre clé API.
+                            <?php endif; ?>
+                        </p>
                     </td>
                 </tr>
 
@@ -156,7 +211,7 @@ class AI_SEO_Master_Admin
                 </tr>
             </table>
 
-            <?php submit_button(); ?>
+            <?php submit_button('Enregistrer les paramètres IA'); ?>
         </form>
     <?php
     }
@@ -165,8 +220,10 @@ class AI_SEO_Master_Admin
     {
     ?>
         <form method="post" action="options.php">
-            <?php settings_fields('ai_seo_master_advanced'); ?>
-            <?php do_settings_sections('ai_seo_master_advanced'); ?>
+            <?php
+            settings_fields('ai_seo_master_advanced');
+            do_settings_sections('ai_seo_master_advanced');
+            ?>
 
             <table class="form-table">
                 <tr>
@@ -208,12 +265,13 @@ class AI_SEO_Master_Admin
                         <input type="text" name="ai_seo_master_default_og_image"
                             value="<?php echo esc_attr(get_option('ai_seo_master_default_og_image')); ?>"
                             class="regular-text">
+                        <button type="button" class="button ai-seo-media-upload" data-target="ai_seo_master_default_og_image">Sélectionner</button>
                         <p class="description">URL de l'image par défaut pour les partages sociaux</p>
                     </td>
                 </tr>
             </table>
 
-            <?php submit_button(); ?>
+            <?php submit_button('Enregistrer les paramètres avancés'); ?>
         </form>
     <?php
     }
@@ -254,23 +312,43 @@ class AI_SEO_Master_Admin
     public function register_settings()
     {
         // Général
-        register_setting('ai_seo_master_general', 'ai_seo_master_default_lang');
-        register_setting('ai_seo_master_general', 'ai_seo_master_alternate_langs');
-        register_setting('ai_seo_master_general', 'ai_seo_master_url_strategy');
+        register_setting('ai_seo_master_general', 'ai_seo_master_default_lang', array(
+            'sanitize_callback' => 'sanitize_text_field'
+        ));
+        register_setting('ai_seo_master_general', 'ai_seo_master_alternate_langs', array(
+            'sanitize_callback' => array($this, 'sanitize_json_array')
+        ));
+        register_setting('ai_seo_master_general', 'ai_seo_master_url_strategy', array(
+            'sanitize_callback' => 'sanitize_text_field'
+        ));
 
         // IA
-        register_setting('ai_seo_master_ai', 'ai_seo_master_api_provider');
+        register_setting('ai_seo_master_ai', 'ai_seo_master_api_provider', array(
+            'sanitize_callback' => 'sanitize_text_field'
+        ));
         register_setting('ai_seo_master_ai', 'ai_seo_master_api_key', array(
             'sanitize_callback' => array($this, 'sanitize_api_key')
         ));
-        register_setting('ai_seo_master_ai', 'ai_seo_master_auto_generate');
-        register_setting('ai_seo_master_ai', 'ai_seo_master_force_manual');
+        register_setting('ai_seo_master_ai', 'ai_seo_master_auto_generate', array(
+            'sanitize_callback' => array($this, 'sanitize_checkbox')
+        ));
+        register_setting('ai_seo_master_ai', 'ai_seo_master_force_manual', array(
+            'sanitize_callback' => array($this, 'sanitize_checkbox')
+        ));
 
         // Avancé
-        register_setting('ai_seo_master_advanced', 'ai_seo_master_enable_schema');
-        register_setting('ai_seo_master_advanced', 'ai_seo_master_enable_hreflang');
-        register_setting('ai_seo_master_advanced', 'ai_seo_master_auto_titles');
-        register_setting('ai_seo_master_advanced', 'ai_seo_master_default_og_image');
+        register_setting('ai_seo_master_advanced', 'ai_seo_master_enable_schema', array(
+            'sanitize_callback' => array($this, 'sanitize_checkbox')
+        ));
+        register_setting('ai_seo_master_advanced', 'ai_seo_master_enable_hreflang', array(
+            'sanitize_callback' => array($this, 'sanitize_checkbox')
+        ));
+        register_setting('ai_seo_master_advanced', 'ai_seo_master_auto_titles', array(
+            'sanitize_callback' => array($this, 'sanitize_checkbox')
+        ));
+        register_setting('ai_seo_master_advanced', 'ai_seo_master_default_og_image', array(
+            'sanitize_callback' => 'esc_url_raw'
+        ));
     }
 
     public function sanitize_api_key($api_key)
@@ -279,7 +357,28 @@ class AI_SEO_Master_Admin
             $ai_api = $this->core->get_ai_api();
             $ai_api->set_api_key($api_key);
         }
-        return ''; // Ne pas stocker en clair
+        return ''; // Ne pas stocker en clair dans la base
+    }
+
+    public function sanitize_json_array($input)
+    {
+        if (empty($input)) {
+            return '["fr","en"]';
+        }
+
+        $decoded = json_decode($input, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            return $input;
+        }
+
+        // Si ce n'est pas un JSON valide, traiter comme une liste séparée par des virgules
+        $items = array_map('trim', explode(',', $input));
+        return json_encode($items);
+    }
+
+    public function sanitize_checkbox($input)
+    {
+        return $input ? 1 : 0;
     }
 
     public function add_meta_boxes()
@@ -305,10 +404,26 @@ class AI_SEO_Master_Admin
         $seo_title = get_post_meta($post->ID, '_ai_seo_title', true);
         $seo_description = get_post_meta($post->ID, '_ai_seo_description', true);
         $seo_keywords = get_post_meta($post->ID, '_ai_seo_keywords', true);
+
+        $ai_configured = $this->core->get_ai_api()->is_configured();
+        $force_manual = get_option('ai_seo_master_force_manual', false);
     ?>
         <div class="ai-seo-meta-box">
+            <?php if (!$ai_configured || $force_manual): ?>
+                <div class="notice notice-warning">
+                    <p>
+                        <?php if (!$ai_configured): ?>
+                            ❌ L'API IA n'est pas configurée. <a href="<?php echo admin_url('options-general.php?page=ai-seo-master#ai-seo'); ?>">Configurez-la ici</a>.
+                        <?php else: ?>
+                            ℹ️ Le mode manuel est activé. La génération IA est désactivée.
+                        <?php endif; ?>
+                    </p>
+                </div>
+            <?php endif; ?>
+
             <p>
-                <button type="button" class="button button-secondary" id="ai-seo-generate">
+                <button type="button" class="button button-secondary" id="ai-seo-generate"
+                    <?php disabled(!$ai_configured || $force_manual); ?>>
                     Générer avec l'IA
                 </button>
                 <span id="ai-seo-status" style="margin-left: 10px;"></span>
@@ -320,7 +435,7 @@ class AI_SEO_Master_Admin
                     <input type="text" id="ai_seo_title" name="ai_seo_title"
                         value="<?php echo esc_attr($seo_title); ?>" class="widefat"
                         placeholder="Titre optimisé pour le SEO (max 60 caractères)">
-                    <span class="char-count" id="title-char-count">0/60</span>
+                    <span class="char-count" id="title-char-count"><?php echo strlen($seo_title); ?>/60</span>
                 </p>
 
                 <p>
@@ -328,7 +443,7 @@ class AI_SEO_Master_Admin
                     <textarea id="ai_seo_description" name="ai_seo_description"
                         class="widefat" rows="3"
                         placeholder="Description optimisée pour le SEO (max 160 caractères)"><?php echo esc_textarea($seo_description); ?></textarea>
-                    <span class="char-count" id="desc-char-count">0/160</span>
+                    <span class="char-count" id="desc-char-count"><?php echo strlen($seo_description); ?>/160</span>
                 </p>
 
                 <p>
@@ -349,7 +464,6 @@ class AI_SEO_Master_Admin
                 }
 
                 $('#ai_seo_title, #ai_seo_description').on('input', updateCharCount);
-                updateCharCount();
 
                 // Génération IA
                 $('#ai-seo-generate').on('click', function() {
@@ -359,10 +473,10 @@ class AI_SEO_Master_Admin
                     $button.prop('disabled', true);
                     $status.text('Génération en cours...');
 
-                    $.post(ajaxurl, {
+                    $.post('<?php echo admin_url('admin-ajax.php'); ?>', {
                         action: 'ai_seo_generate_content',
                         post_id: <?php echo $post->ID; ?>,
-                        nonce: '<?php echo wp_create_nonce('ai_seo_generate'); ?>'
+                        nonce: '<?php echo wp_create_nonce('ai_seo_generate_content'); ?>'
                     }, function(response) {
                         if (response.success) {
                             if (response.data.title) {
@@ -374,14 +488,14 @@ class AI_SEO_Master_Admin
                             if (response.data.keywords) {
                                 $('#ai_seo_keywords').val(response.data.keywords);
                             }
-                            $status.text('Généré avec succès!');
+                            $status.text('✅ Généré avec succès!');
                             updateCharCount();
                         } else {
-                            $status.text('Erreur: ' + response.data);
+                            $status.text('❌ Erreur: ' + response.data);
                         }
                         $button.prop('disabled', false);
                     }).fail(function() {
-                        $status.text('Erreur de connexion');
+                        $status.text('❌ Erreur de connexion');
                         $button.prop('disabled', false);
                     });
                 });
@@ -400,22 +514,19 @@ class AI_SEO_Master_Admin
                 AI_SEO_MASTER_VERSION
             );
 
-            wp_enqueue_script(
-                'ai-seo-master-admin',
-                AI_SEO_MASTER_PLUGIN_URL . 'admin/assets/js/admin.js',
-                array('jquery'),
-                AI_SEO_MASTER_VERSION,
-                true
-            );
+            wp_enqueue_media(); // Pour le sélecteur d'image
         }
     }
 
     public function ajax_generate_seo_content()
     {
-        check_ajax_referer('ai_seo_generate', 'nonce');
+        // Vérifier le nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'ai_seo_generate_content')) {
+            wp_send_json_error('Nonce invalide');
+        }
 
         if (!current_user_can('edit_posts')) {
-            wp_die('Unauthorized');
+            wp_send_json_error('Non autorisé');
         }
 
         $post_id = intval($_POST['post_id']);
@@ -426,12 +537,17 @@ class AI_SEO_Master_Admin
         }
 
         $ai_api = $this->core->get_ai_api();
+
+        if (!$ai_api->is_configured()) {
+            wp_send_json_error('API IA non configurée');
+        }
+
         $result = $ai_api->generate_seo_content($post_id, $post);
 
         if ($result) {
             wp_send_json_success($result);
         } else {
-            wp_send_json_error('Erreur lors de la génération');
+            wp_send_json_error('Erreur lors de la génération par IA');
         }
     }
 }

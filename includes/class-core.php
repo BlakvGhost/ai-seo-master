@@ -10,6 +10,7 @@ class AI_SEO_Master_Core
     private $meta_tags;
     private $admin;
     private $frontend;
+    private $diagnostic;
 
     public static function get_instance()
     {
@@ -22,15 +23,27 @@ class AI_SEO_Master_Core
     private function __construct()
     {
         $this->load_dependencies();
-        $this->init_components();
     }
 
     private function load_dependencies()
     {
+        // Charger les classes
+        require_once AI_SEO_MASTER_PLUGIN_PATH . 'includes/class-ai-api.php';
+        require_once AI_SEO_MASTER_PLUGIN_PATH . 'includes/class-schema.php';
+        require_once AI_SEO_MASTER_PLUGIN_PATH . 'includes/class-hreflang.php';
+        require_once AI_SEO_MASTER_PLUGIN_PATH . 'includes/class-meta-tags.php';
+        require_once AI_SEO_MASTER_PLUGIN_PATH . 'admin/class-admin.php';
+        require_once AI_SEO_MASTER_PLUGIN_PATH . 'public/class-frontend.php';
+        require_once AI_SEO_MASTER_PLUGIN_PATH . 'includes/class-diagnostic.php';
+        require_once AI_SEO_MASTER_PLUGIN_PATH . 'admin/ajax-diagnostic.php';
+
+        // Instancier les composants
         $this->ai_api = new AI_SEO_Master_AI_API();
         $this->schema = new AI_SEO_Master_Schema();
         $this->hreflang = new AI_SEO_Master_Hreflang();
         $this->meta_tags = new AI_SEO_Master_Meta_Tags();
+        $this->diagnostic = new AI_SEO_Master_Diagnostic();
+
 
         if (is_admin()) {
             $this->admin = new AI_SEO_Master_Admin();
@@ -41,24 +54,21 @@ class AI_SEO_Master_Core
 
     public function run()
     {
-        // Initialiser les hooks
-        add_action('init', array($this, 'init'));
-
         // Initialiser les composants
         $this->ai_api->init();
         $this->schema->init();
         $this->hreflang->init();
         $this->meta_tags->init();
+        $this->diagnostic->init();
 
         if ($this->admin) {
             $this->admin->init();
         }
 
-        $this->frontend->init();
-    }
+        if ($this->frontend) {
+            $this->frontend->init();
+        }
 
-    public function init()
-    {
         // Hook pour la génération IA lors de la sauvegarde
         add_action('save_post', array($this, 'generate_seo_on_save'), 10, 3);
     }

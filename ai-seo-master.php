@@ -33,14 +33,8 @@ function ai_seo_master_activation_check()
     }
 }
 
-// Charger les classes principales
+// Charger la classe principale
 require_once AI_SEO_MASTER_PLUGIN_PATH . 'includes/class-core.php';
-require_once AI_SEO_MASTER_PLUGIN_PATH . 'includes/class-ai-api.php';
-require_once AI_SEO_MASTER_PLUGIN_PATH . 'includes/class-schema.php';
-require_once AI_SEO_MASTER_PLUGIN_PATH . 'includes/class-hreflang.php';
-require_once AI_SEO_MASTER_PLUGIN_PATH . 'includes/class-meta-tags.php';
-require_once AI_SEO_MASTER_PLUGIN_PATH . 'admin/class-admin.php';
-require_once AI_SEO_MASTER_PLUGIN_PATH . 'public/class-frontend.php';
 
 // Initialiser le plugin
 function ai_seo_master_init()

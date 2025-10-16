@@ -23,8 +23,12 @@ class AI_SEO_Master_AI_API
     {
         $encrypted = get_option('ai_seo_master_api_key_encrypted');
         if ($encrypted) {
-            // Décrypter la clé (méthode basique)
-            return $this->decrypt_api_key($encrypted);
+            $key = hash('sha256', AUTH_KEY, true);
+            $iv = substr(base64_decode($encrypted), 0, 16);
+            $encrypted_data = substr(base64_decode($encrypted), 16);
+
+            $decrypted = openssl_decrypt($encrypted_data, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv);
+            return $decrypted ?: '';
         }
         return '';
     }
@@ -32,27 +36,45 @@ class AI_SEO_Master_AI_API
     public function set_api_key($api_key)
     {
         if (!empty($api_key)) {
-            $encrypted = $this->encrypt_api_key($api_key);
-            update_option('ai_seo_master_api_key_encrypted', $encrypted);
+            // Méthode de cryptage simple
+            $key = hash('sha256', AUTH_KEY, true);
+            $iv = openssl_random_pseudo_bytes(16);
+            $encrypted = openssl_encrypt($api_key, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv);
+            $encrypted_data = base64_encode($iv . $encrypted);
+
+            update_option('ai_seo_master_api_key_encrypted', $encrypted_data);
+            $this->api_key = $api_key;
         } else {
-            delete_option('ai_seo_master_api_key_encrypted');
+            return;
         }
+
+        $this->is_configured = !empty($this->api_provider) && !empty($this->api_key);
     }
 
     private function encrypt_api_key($key)
     {
-        // Méthode de cryptage simple (à renforcer en production)
+        $method = 'AES-256-CBC';
+        $key = hash('sha256', AUTH_KEY, true);
         $iv = openssl_random_pseudo_bytes(16);
-        $encrypted = openssl_encrypt($key, 'AES-256-CBC', AUTH_KEY, 0, $iv);
+
+        $encrypted = openssl_encrypt($key, $method, $key, OPENSSL_RAW_DATA, $iv);
         return base64_encode($iv . $encrypted);
     }
 
     private function decrypt_api_key($encrypted)
     {
-        $data = base64_decode($encrypted);
-        $iv = substr($data, 0, 16);
-        $encrypted = substr($data, 16);
-        return openssl_decrypt($encrypted, 'AES-256-CBC', AUTH_KEY, 0, $iv);
+        try {
+            $data = base64_decode($encrypted);
+            $method = 'AES-256-CBC';
+            $key = hash('sha256', AUTH_KEY, true);
+            $iv = substr($data, 0, 16);
+            $encrypted = substr($data, 16);
+
+            return openssl_decrypt($encrypted, $method, $key, OPENSSL_RAW_DATA, $iv);
+        } catch (Exception $e) {
+            error_log('AI SEO Master - Erreur de décryptage: ' . $e->getMessage());
+            return '';
+        }
     }
 
     public function generate_seo_content($post_id, $post)
@@ -66,8 +88,9 @@ class AI_SEO_Master_AI_API
         try {
             $response = $this->call_ai_api($prompt);
             $seo_data = $this->parse_ai_response($response);
+            var_dump($seo_data, $prompt);
+            exit();
 
-            // Sauvegarder les métadonnées
             $this->save_seo_metadata($post_id, $seo_data);
 
             return $seo_data;
@@ -178,7 +201,6 @@ Retourne UNIQUEMENT un JSON valide avec cette structure:
             $content = $response['candidates'][0]['content']['parts'][0]['text'];
         }
 
-        // Extraire le JSON de la réponse
         preg_match('/\{.*\}/s', $content, $matches);
         if (isset($matches[0])) {
             return json_decode($matches[0], true);
